@@ -14,7 +14,7 @@ def modelo():
 
 	glViewPort(0,0,800,800)
 
-	load('./modelos/effel-tower.obj', (200,500),(0.5,0.5))
+	load('./Modelos/effel-tower.obj', (200,500),(0.5,0.5))
 
 	glFinish()
 
