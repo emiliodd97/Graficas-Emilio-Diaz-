@@ -63,4 +63,4 @@ objetos.load('./modelos/EAGLE_2.OBJ', mtl='./modelos/EAGLE_2.MTL', translate=(0,
 objetos.lookAt(V3(1,1,5), V3(-0.3,-0.3,0), V3(0,1,0))
 objetos.load('./modelos/BEAR_KDK.OBJ', mtl='./modelos/BEAR_KDK.MTL', translate=(0, 0, 0), scale=(0.3,0.3,0.3), rotate=(0, -0.3, 0))
 
-objetos.archivo('EscenaFinal.bmp')
+objetos.archivo('Final.bmp')
