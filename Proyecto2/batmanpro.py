@@ -30,11 +30,16 @@ pygame.mixer.music.play(-1)
 
 
 bmpText = pygame.image.load("./modelos/batman.bmp")
-texture_data = pygame.image.tostring(bmpText,"RGB",1)
+texture_data = pygame.image.tostring(bmpText,"RGB",1) 
+
+
 width = bmpText.get_width()
 height = bmpText.get_height()
-mitime = 0
-clearBuffer = GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT
+
+countime = 0
+
+
+clear = GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT
 
 disp = False
 
@@ -43,32 +48,93 @@ glClearColor(0.25, 0.25, 0.25, 1.0)
 glEnable(GL_DEPTH_TEST)
 glEnable(GL_TEXTURE_2D)
 
-# OpenGL.GL.shaders
-vertex_shader = ""
-fragment_shader = ""
-pin_shader = ""
 
+vertex_shader = """
+layout (location = 0) in vec4 position;
+layout (location = 1) in vec4 normal;
+layout (location = 2) in vec2 texcoords;
 
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+uniform vec4 color;
+uniform vec4 light;
 
-shader1 = OpenGL.GL.shaders.compileProgram(
+out vec4 vertexColor;
+out vec2 vertexTexcoords;
+
+void main()
+{
+    float intensity = dot(normal, normalize(light - position))+0.5;
+
+    gl_Position = projection * view * model * position;
+    vertexColor = color * intensity;
+    vertexTexcoords = texcoords;
+}
+
+"""
+fragment_shader = """
+
+layout (location = 0) out vec4 diffuseColor;
+in vec4 vertexColor;
+in vec2 vertexTexcoords;
+
+uniform sampler2D tex;
+
+void main()
+{
+    diffuseColor = vertexColor * texture(tex, vertexTexcoords);
+}
+
+"""
+
+pin_shader = """
+
+in vec4 vertexColor;
+in vec2 vertexTexcoords;
+uniform float time;
+uniform vec2 resolution;
+uniform sampler2D tex;
+
+void main():
+
+{
+
+    vec2 p = (2. * gl_FragCoord.xy - 1000) / 300;
+    for(int i=0; i<5; i++){
+        p = abs(p) - 0.375;
+
+    }
+    float n = 50.;
+    vec2 st = floor(p * n) / n; 
+
+    float r = length(st*abs(cos(time+st.x)*5.));
+    float g = length(st*abs(sin(time+st.y)*5.));
+    float b = length(st*abs(cos(time*2.)*5.));
+    gl_FragColor = vec4(vec3(r,g, b), 1.0 );
+}
+
+"""
+
+upper = OpenGL.GL.shaders.compileProgram(
     OpenGL.GL.shaders.compileShader(vertex_shader, GL_VERTEX_SHADER),
     OpenGL.GL.shaders.compileShader(fragment_shader, GL_FRAGMENT_SHADER),
 
 )
 
-shader2 = OpenGL.GL.shaders.compileProgram(
+downer = OpenGL.GL.shaders.compileProgram(
     OpenGL.GL.shaders.compileShader(vertex_shader, GL_VERTEX_SHADER),
     OpenGL.GL.shaders.compileShader(pin_shader, GL_FRAGMENT_SHADER), validate = False
 )
 
-shader = shader1
+shader = upper
 
 glUseProgram(shader)
 
 
 model = glm.mat4(1)
 view = glm.mat4(1)
-projection = glm.perspective(glm.radians(45), 800/600, 0.1, 1000.0)
+projection = glm.perspective(glm.radians(45), 1200/800, 0.1, 1000.0)
 
 glViewport(0, 0, 800, 600)
 
@@ -81,7 +147,6 @@ class cam(object):
 
         self.screen = screen
 
-        # get_size_arma ---> funcion que obtiene el tamaño de la camara
 
         self.width, self.height = self.screen.get_size()
 
@@ -108,11 +173,45 @@ class cam(object):
 
             point = player.x, player.y
 
-            ray = gmap.raycast(point, player.direction+angle, 8)
+            ray = gmap(point, player.direction+angle, 8)
 
             self.renderC(column, ray, angle, gmap)
 
             """
+
+
+
+
+"""
+def renderC(self, column, ray, angle, gmap):
+
+        left = int(math.floor(column*(self.width/self.resolution)))
+
+        for i in range(len(ray)-1, -1, -1):
+
+            step = ray[i]
+
+            if (step.height > 0):
+
+                texture = gmap.textura
+
+                width = int(math.ceil((self.width/self.resolution)))
+
+                textureX = int(texture.width*step.offset)
+
+                wall = self.project(step.height, angle, step.distance)
+
+                imagenDir = pygame.Rect(textureX, 0, 1, texture.height)
+
+                cambiarImagen = texture.image.subsurface(imagenDir)
+
+                scaleR = pygame.Rect(left, wall.size_arma, width, wall.height)
+
+                escamed = pygame.transform.scale(cambiarImagen, scaleR.size)
+
+                self.screen.blit(escamed, scaleR)
+
+"""
 
 
 def mainfunc(node):
@@ -176,12 +275,12 @@ def mainfunc(node):
 
         glUniform1f(
             glGetUniformLocation(shader, "time"),
-            mitime
+            countime
         )
 
         glUniform4f(
             glGetUniformLocation(shader, "light"),
-            cam.x, cam.y, 100, 1
+            xfac, yfac, 100, 1
         )
 
         glDrawElements(GL_TRIANGLES, len(faces), GL_UNSIGNED_INT, None)
@@ -190,42 +289,11 @@ def mainfunc(node):
     for child in node.children:
         mainfunc(child)
 
-"""
-def renderC(self, column, ray, angle, gmap):
-
-        left = int(math.floor(column*(self.width/self.resolution)))
-
-        for i in range(len(ray)-1, -1, -1):
-
-            step = ray[i]
-
-            if (step.height > 0):
-
-                texture = gmap.textura
-
-                width = int(math.ceil((self.width/self.resolution)))
-
-                textureX = int(texture.width*step.offset)
-
-                wall = self.project(step.height, angle, step.distance)
-
-                imagenDir = pygame.Rect(textureX, 0, 1, texture.height)
-
-                cambiarImagen = texture.image.subsurface(imagenDir)
-
-                scaleR = pygame.Rect(left, wall.size_arma, width, wall.height)
-
-                escamed = pygame.transform.scale(cambiarImagen, scaleR.size)
-
-                self.screen.blit(escamed, scaleR)
-
-"""
-
 cam = glm.vec3(0, 0, 160)
 vel = 3
 rotationvar = 0
-diamn = cam.z
-zoom = 5
+diamn = zfac
+frameud = 5
 onz = 0
 status = 0
 
@@ -235,13 +303,17 @@ def diam(x, z):
 #Movimientos de la camara
 #Se incluye las condiciones para que no vaya a traspasar al modelo o se aleje demasiado
 def dispfunc():
-    global rotationvar, diamn, zoom, onz, mitime, status, shader, shader1, shader2, clearBuffer
-    diamn = diam(cam.x, cam.z)
-    mitime += 1
+    global rotationvar, diamn, frameud, onz, countime, status, shader, upper, downer, clear
+    diamn = diam(xfac, zfac)
+    countime += 1
     if(status == 2 or status == 0):
         glClearColor(0.25, 0.25, 0.25, 1.0)
+
+
     else:
         glClearColor(random.random(), 0, random.random(), 1)
+
+
     for event in pygame.event.get():
 
         if event.type == pygame.QUIT:
@@ -256,50 +328,50 @@ def dispfunc():
 
             if event.key == pygame.K_LEFT:
                 rotationvar += vel
-                cam.x = math.sin(rotationvar) * diamn
-                cam.z = math.cos(rotationvar) * diamn
+                xfac = math.sin(rotationvar) * diamn
+                zfac = math.cos(rotationvar) * diamn
 
 
             if event.key == pygame.K_RIGHT:
                 rotationvar -= vel
-                cam.x = math.sin(rotationvar) * diamn
-                cam.z = math.cos(rotationvar) * diamn
+                xfac = math.sin(rotationvar) * diamn
+                zfac = math.cos(rotationvar) * diamn
 
 
             if event.key == pygame.K_UP:
-                if cam.z > 10:
-                    cam.z -= zoom
-                elif cam.z < -10:
-                    cam.z += zoom
+                if zfac > 10:
+                    zfac -= frameud
+                elif zfac < -10:
+                    zfac += frameud
 
 
             if event.key == pygame.K_DOWN:
-                if 0 < cam.z <500:
-                    cam.z += zoom
-                elif 0 > cam.z > -500:
-                    cam.z -= zoom
+                if 0 < zfac <500:
+                    zfac += frameud
+                elif 0 > zfac > -500:
+                    zfac -= frameud
 
 
             if event.key == pygame.K_w:
-                if cam.y >= -500:
-                    cam.y -= zoom
+                if yfac >= -500:
+                    yfac -= frameud
 
 
             if event.key == pygame.K_s:
-                if cam.y < 500:
-                    cam.y += zoom
+                if yfac < 500:
+                    yfac += frameud
             
     return False
 
 
 
 while not disp:
-    glClear(clearBuffer)
+    glClear(clear)
 
     view = glm.lookAt(cam, glm.vec3(0, 0, 0), glm.vec3(0, 1, 0))
 
     mainfunc(batmanobj.rootnode)
 
     disp = dispfunc()
-    count.tick(15)
+    count.tick(30)
     pygame.display.flip()
