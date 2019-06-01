@@ -37,10 +37,7 @@ width = bmpText.get_width()
 height = bmpText.get_height()
 
 countime = 0
-
-
 clear = GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT
-
 disp = False
 
 
@@ -48,83 +45,119 @@ glClearColor(0.25, 0.25, 0.25, 1.0)
 glEnable(GL_DEPTH_TEST)
 glEnable(GL_TEXTURE_2D)
 
-
-vertex_shader = """
-layout (location = 0) in vec4 position;
-layout (location = 1) in vec4 normal;
-layout (location = 2) in vec2 texcoords;
-
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-uniform vec4 color;
-uniform vec4 light;
-
-out vec4 vertexColor;
-out vec2 vertexTexcoords;
-
-void main()
-{
-    float intensity = dot(normal, normalize(light - position))+0.5;
-
-    gl_Position = projection * view * model * position;
-    vertexColor = color * intensity;
-    vertexTexcoords = texcoords;
-}
-
+#GL SHADERS FROM https://realpythonGL.com/pythonguide/
+vert = """ vertex()
 """
-fragment_shader = """
+def vertex():
 
-layout (location = 0) out vec4 diffuseColor;
-in vec4 vertexColor;
-in vec2 vertexTexcoords;
+    layout (location = 0) in vec4 position;
 
-uniform sampler2D tex;
+    layout (location = 1) in vec4 normal;
 
-void main()
-{
-    diffuseColor = vertexColor * texture(tex, vertexTexcoords);
-}
+    layout (location = 2) in vec2 texcoords;
 
-"""
 
-pin_shader = """
 
-in vec4 vertexColor;
-in vec2 vertexTexcoords;
-uniform float time;
-uniform vec2 resolution;
-uniform sampler2D tex;
+    uniform mat4 model;
 
-void main():
+    uniform mat4 view;
 
-{
+    uniform mat4 projection;
 
-    vec2 p = (2. * gl_FragCoord.xy - 1000) / 300;
-    for(int i=0; i<5; i++){
-        p = abs(p) - 0.375;
+
+
+    uniform vec4 color;
+
+    uniform vec4 light;
+
+
+
+    out vec4 vertexColor;
+
+    out vec2 vertexTexcoords;
+
+
+
+    void main()
+
+    {
+
+        float intensity = dot(normal, normalize(light - position))+0.5;
+
+
+
+        gl_Position = projection * view * model * position;
+
+        vertexColor = color * intensity;
+
+        vertexTexcoords = texcoords;
 
     }
-    float n = 50.;
-    vec2 st = floor(p * n) / n; 
 
-    float r = length(st*abs(cos(time+st.x)*5.));
-    float g = length(st*abs(sin(time+st.y)*5.));
-    float b = length(st*abs(cos(time*2.)*5.));
-    gl_FragColor = vec4(vec3(r,g, b), 1.0 );
-}
+
+frag = """ fragment()
 
 """
+def fragment():
+    layout (location = 0) out vec4 diffuseColor;
+
+
+
+    in vec4 vertexColor;
+
+    in vec2 vertexTexcoords;
+
+
+
+    uniform sampler2D tex;
+
+
+
+    void main()
+
+    {
+
+        diffuseColor = vertexColor * texture(tex, vertexTexcoords);
+
+    }
+
+pin = """ def pin_shaderpro()
+"""
+def pin_shaderpro():
+
+    in vec4 vertexColor;
+    in vec2 vertexTexcoords;
+    uniform float time;
+    uniform vec2 resolution;
+    uniform sampler2D tex;
+
+    void main():
+
+    {
+
+        vec2 p = (2. * gl_FragCoord.xy - 1000) / 300;
+        for(int i=0; i<5; i++){
+            p = abs(p) - 0.375;
+
+        }
+        float n = 50.;
+        vec2 st = floor(p * n) / n; 
+
+        float r = length(st*abs(cos(time+st.x)*5.));
+        float g = length(st*abs(sin(time+st.y)*5.));
+        float b = length(st*abs(cos(time*2.)*5.));
+        gl_FragColor = vec4(vec3(r,g, b), 1.0 );
+
 
 upper = OpenGL.GL.shaders.compileProgram(
-    OpenGL.GL.shaders.compileShader(vertex_shader, GL_VERTEX_SHADER),
-    OpenGL.GL.shaders.compileShader(fragment_shader, GL_FRAGMENT_SHADER),
+    OpenGL.GL.shaders.compileShader(vert, GL_VERTEX_SHADER),
+    OpenGL.GL.shaders.compileShader(frag, GL_FRAGMENT_SHADER),
 
 )
 
 downer = OpenGL.GL.shaders.compileProgram(
-    OpenGL.GL.shaders.compileShader(vertex_shader, GL_VERTEX_SHADER),
-    OpenGL.GL.shaders.compileShader(pin_shader, GL_FRAGMENT_SHADER), validate = False
+    OpenGL.GL.shaders.compileShader(vert, GL_VERTEX_SHADER),
+    OpenGL.GL.shaders.compileShader(pin, GL_FRAGMENT_SHADER), validate = False
 )
 
 shader = upper
@@ -140,6 +173,8 @@ glViewport(0, 0, 800, 600)
 
 
 batmanobj = pyassimp.load('./modelos/batman.obj')
+
+
 """
 class cam(object):
 
@@ -180,7 +215,11 @@ class cam(object):
             """
 
 
-
+cam = glm.vec3(0, 0, 160)
+vel = 3
+rotationvar = 0
+diamn = zfac
+frameud = 5
 
 """
 def renderC(self, column, ray, angle, gmap):
@@ -289,11 +328,7 @@ def mainfunc(node):
     for child in node.children:
         mainfunc(child)
 
-cam = glm.vec3(0, 0, 160)
-vel = 3
-rotationvar = 0
-diamn = zfac
-frameud = 5
+
 onz = 0
 status = 0
 
