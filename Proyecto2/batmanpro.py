@@ -16,6 +16,12 @@ import random
 from OpenGL.GL import *
 import OpenGL.GL.shaders
 
+pygame.init()
+
+surface = pygame.display.set_mode((1200, 800), pygame.OPENGLBLIT | pygame.DOUBLEBUF)
+background = pygame.image.load("gotham.jpg")
+count = pygame.time.Clock()
+pygame.key.set_repeat(1, 10)
 
 #Musiquita pa que todo sea mas cool 
 pygame.mixer.music.load("newBatman.mp3")
@@ -30,16 +36,10 @@ height = bmpText.get_height()
 mitime = 0
 clearBuffer = GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT
 
+disp = False
 
 
-
-pygame.init()
-surface = pygame.display.set_mode((1200, 800), pygame.OPENGLBLIT | pygame.DOUBLEBUF)
-background = pygame.image.load("gotham.jpg")
-clock = pygame.time.Clock()
-pygame.key.set_repeat(1, 10)
-
-glClearColor(0.18, 0.18, 0.18, 1.0)
+glClearColor(0.25, 0.25, 0.25, 1.0)
 glEnable(GL_DEPTH_TEST)
 glEnable(GL_TEXTURE_2D)
 
@@ -65,7 +65,7 @@ shader = shader1
 
 glUseProgram(shader)
 
-# matrixes
+
 model = glm.mat4(1)
 view = glm.mat4(1)
 projection = glm.perspective(glm.radians(45), 800/600, 0.1, 1000.0)
@@ -73,10 +73,49 @@ projection = glm.perspective(glm.radians(45), 800/600, 0.1, 1000.0)
 glViewport(0, 0, 800, 600)
 
 
-scene = pyassimp.load('./modelos/batman.obj')
+batmanobj = pyassimp.load('./modelos/batman.obj')
+"""
+class cam(object):
+
+    def __init__(self, screen, resolution):
+
+        self.screen = screen
+
+        # get_size_arma ---> funcion que obtiene el tamaño de la camara
+
+        self.width, self.height = self.screen.get_size()
+
+        self.resolution = float(resolution)
 
 
-def glize(node):
+    def render(self, player, gmap):
+
+        self.limpiando_movimiento(player.direction, gmap.cielo, gmap.light)
+
+        self.columnasRender(player, gmap)
+
+        self.armaRender(player.weapon, player.positionWeapon)
+
+  
+
+    def  Render(self, player, gmap):
+
+        for column in range(int(self.resolution)):
+
+            angle = (math.pi*0.4) * (column/self.resolution-0.5)
+
+            # damos los puntos a cada eje
+
+            point = player.x, player.y
+
+            ray = gmap.raycast(point, player.direction+angle, 8)
+
+            self.renderC(column, ray, angle, gmap)
+
+            """
+
+
+def mainfunc(node):
     global texture_data, width, height
     model = node.transformation.astype(numpy.float32)
 
@@ -96,14 +135,16 @@ def glize(node):
             numpy.array(mesh.faces, dtype=numpy.int32)
         )
 
-        vertex_buffer_object = glGenVertexArrays(1)
-        glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object)
-        glBufferData(GL_ARRAY_BUFFER, vertex_data.nbytes, vertex_data, GL_STATIC_DRAW)
-
         glVertexAttribPointer(0, 3, GL_FLOAT, False, 9 * 4, None)
         glEnableVertexAttribArray(0)
         glVertexAttribPointer(1, 3, GL_FLOAT, False, 9 * 4, ctypes.c_void_p(3 * 4))
         glEnableVertexAttribArray(1)
+
+        vertex_buffer_object = glGenVertexArrays(1)
+        glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_object)
+        glBufferData(GL_ARRAY_BUFFER, vertex_data.nbytes, vertex_data, GL_STATIC_DRAW)
+
+        
         glVertexAttribPointer(2, 3, GL_FLOAT, False, 9 * 4, ctypes.c_void_p(6 * 4))
         glEnableVertexAttribArray(2)
 
@@ -140,96 +181,125 @@ def glize(node):
 
         glUniform4f(
             glGetUniformLocation(shader, "light"),
-            camera.x, camera.y, 100, 1
+            cam.x, cam.y, 100, 1
         )
 
         glDrawElements(GL_TRIANGLES, len(faces), GL_UNSIGNED_INT, None)
 
 
     for child in node.children:
-        glize(child)
+        mainfunc(child)
 
+"""
+def renderC(self, column, ray, angle, gmap):
 
-camera = glm.vec3(0, 0, 160)
+        left = int(math.floor(column*(self.width/self.resolution)))
+
+        for i in range(len(ray)-1, -1, -1):
+
+            step = ray[i]
+
+            if (step.height > 0):
+
+                texture = gmap.textura
+
+                width = int(math.ceil((self.width/self.resolution)))
+
+                textureX = int(texture.width*step.offset)
+
+                wall = self.project(step.height, angle, step.distance)
+
+                imagenDir = pygame.Rect(textureX, 0, 1, texture.height)
+
+                cambiarImagen = texture.image.subsurface(imagenDir)
+
+                scaleR = pygame.Rect(left, wall.size_arma, width, wall.height)
+
+                escamed = pygame.transform.scale(cambiarImagen, scaleR.size)
+
+                self.screen.blit(escamed, scaleR)
+
+"""
+
+cam = glm.vec3(0, 0, 160)
 vel = 3
-rotation = 0
-radio = camera.z
+rotationvar = 0
+diamn = cam.z
 zoom = 5
-camera_z = 0
+onz = 0
 status = 0
 
-def radius(x, z):
+def diam(x, z):
     return numpy.sqrt((x**2 + z**2))
 
-
-def process_input():
-    global rotation, radio, zoom, camera_z, mitime, status, shader, shader1, shader2, clearBuffer
-    radio = radius(camera.x, camera.z)
+#Movimientos de la camara
+#Se incluye las condiciones para que no vaya a traspasar al modelo o se aleje demasiado
+def dispfunc():
+    global rotationvar, diamn, zoom, onz, mitime, status, shader, shader1, shader2, clearBuffer
+    diamn = diam(cam.x, cam.z)
     mitime += 1
     if(status == 2 or status == 0):
-        glClearColor(0.18, 0.18, 0.18, 1.0)
+        glClearColor(0.25, 0.25, 0.25, 1.0)
     else:
         glClearColor(random.random(), 0, random.random(), 1)
     for event in pygame.event.get():
+
         if event.type == pygame.QUIT:
             return True
+
+
         if event.type == pygame.KEYUP and event.key == pygame.K_ESCAPE:
             return True
+
+
         if event.type == pygame.KEYDOWN:
+
             if event.key == pygame.K_LEFT:
-                rotation += vel
-                camera.x = math.sin(rotation) * radio
-                camera.z = math.cos(rotation) * radio
+                rotationvar += vel
+                cam.x = math.sin(rotationvar) * diamn
+                cam.z = math.cos(rotationvar) * diamn
+
+
             if event.key == pygame.K_RIGHT:
-                rotation -= vel
-                camera.x = math.sin(rotation) * radio
-                camera.z = math.cos(rotation) * radio
+                rotationvar -= vel
+                cam.x = math.sin(rotationvar) * diamn
+                cam.z = math.cos(rotationvar) * diamn
+
+
             if event.key == pygame.K_UP:
-                if camera.z > 20:
-                    camera.z -= zoom
-                elif camera.z < -20:
-                    camera.z += zoom
+                if cam.z > 10:
+                    cam.z -= zoom
+                elif cam.z < -10:
+                    cam.z += zoom
+
+
             if event.key == pygame.K_DOWN:
-                if 0 < camera.z <300:
-                    camera.z += zoom
-                elif 0 > camera.z > -300:
-                    camera.z -= zoom
+                if 0 < cam.z <500:
+                    cam.z += zoom
+                elif 0 > cam.z > -500:
+                    cam.z -= zoom
+
+
             if event.key == pygame.K_w:
-                if camera.y >= -300:
-                    camera.y -= zoom
+                if cam.y >= -500:
+                    cam.y -= zoom
+
+
             if event.key == pygame.K_s:
-                if camera.y < 300:
-                    camera.y += zoom
-            if event.key == pygame.K_p:
-                if(status == 2):
-                    pygame.mixer.music.unpause()
-                    shader = shader2
-                    #clearBuffer = GL_DEPTH_BUFFER_BIT
-                    glUseProgram(shader)
-                    status = 1
-                elif(status == 1):
-                    pygame.mixer.music.pause()
-                    shader = shader1
-                    clearBuffer = GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT
-                    glClear(clearBuffer)
-                    glUseProgram(shader)
-                    status = 2
-                elif(status == 0):
-                    pygame.mixer.music.play(0, 16.5)
-                    shader = shader2
-                    glUseProgram(shader)
-                    status = 1
+                if cam.y < 500:
+                    cam.y += zoom
+            
     return False
 
 
-done = False
-while not done:
+
+while not disp:
     glClear(clearBuffer)
 
-    view = glm.lookAt(camera, glm.vec3(0, 0, 0), glm.vec3(0, 1, 0))
+    view = glm.lookAt(cam, glm.vec3(0, 0, 0), glm.vec3(0, 1, 0))
 
-    glize(scene.rootnode)
+    mainfunc(batmanobj.rootnode)
 
-    done = process_input()
-    clock.tick(15)
+    disp = dispfunc()
+    count.tick(15)
     pygame.display.flip()
